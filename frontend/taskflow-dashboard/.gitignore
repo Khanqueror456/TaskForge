@@ -1,0 +1,45 @@
+<<<<<<< HEAD
+=======
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+.env.*
+
+>>>>>>> ced8ee143cae8865a2f8cf16e69aa50a4cf4bb6f
+# Logs
+logs
+*.log
+npm-debug.log*
+<<<<<<< HEAD
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+=======
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build folders
+dist/
+build/
+>>>>>>> ced8ee143cae8865a2f8cf16e69aa50a4cf4bb6f
