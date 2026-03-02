@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Task, Worker, LogEntry, TaskPriority } from "@/types/dashboard";
-import { initialTasks, initialWorkers, generateInitialLogs, generateLog, createTask, getStats } from "@/services/api";
+import { fetchTasks, fetchWorkers, fetchLogs, createTask, getStats, generateMockLog } from "@/services/api";
 import DashboardStats from "@/components/DashboardStats";
 import TaskForm from "@/components/TaskForm";
 import TaskTable from "@/components/TaskTable";
@@ -10,73 +10,72 @@ import { motion } from "framer-motion";
 import { Activity } from "lucide-react";
 
 export default function Dashboard() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [workers, setWorkers] = useState<Worker[]>(initialWorkers);
-  const [logs, setLogs] = useState<LogEntry[]>(generateInitialLogs);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Simulate real-time log streaming
+  // Initial data fetch
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLogs(prev => {
-        const next = [...prev, generateLog()];
-        return next.slice(-50); // keep last 50
-      });
-    }, 2500);
-    return () => clearInterval(interval);
+    async function loadData() {
+      const [t, w, l] = await Promise.all([fetchTasks(), fetchWorkers(), fetchLogs()]);
+      setTasks(t);
+      setWorkers(w);
+      setLogs(l);
+      setLoading(false);
+    }
+    loadData();
   }, []);
 
-  // Simulate task state changes
+  // Poll for updates every 5s (replace with WebSocket when backend supports it)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTasks(prev => {
-        const updated = [...prev];
-        const running = updated.filter(t => t.state === "running");
-        const queued = updated.filter(t => t.state === "queued");
-
-        // Randomly complete a running task
-        if (running.length > 0 && Math.random() > 0.6) {
-          const task = running[Math.floor(Math.random() * running.length)];
-          const idx = updated.findIndex(t => t.id === task.id);
-          updated[idx] = { ...task, state: Math.random() > 0.15 ? "completed" : "failed", duration: (task.duration || 0) + Math.floor(Math.random() * 30) + 10 };
-        }
-
-        // Move a queued task to running
-        if (queued.length > 0 && Math.random() > 0.5) {
-          const task = queued[0];
-          const idx = updated.findIndex(t => t.id === task.id);
-          const freeWorker = workers.find(w => w.status === "idle");
-          updated[idx] = { ...task, state: "running", worker: freeWorker?.name || "worker-alpha-01" };
-        }
-
-        return updated;
-      });
-
-      // Simulate worker metric changes
-      setWorkers(prev => prev.map(w => {
-        if (w.status === "offline") return w;
-        return {
-          ...w,
-          cpu: Math.max(5, Math.min(95, w.cpu + Math.floor(Math.random() * 20) - 10)),
-          memory: Math.max(10, Math.min(90, w.memory + Math.floor(Math.random() * 10) - 5)),
-        };
-      }));
-    }, 4000);
+    if (loading) return;
+    const interval = setInterval(async () => {
+      try {
+        const [t, w] = await Promise.all([fetchTasks(), fetchWorkers()]);
+        setTasks(t);
+        setWorkers(w);
+      } catch {
+        // If polling fails, simulate locally
+        setLogs(prev => [...prev, generateMockLog()].slice(-50));
+      }
+    }, 5000);
     return () => clearInterval(interval);
-  }, [workers]);
+  }, [loading]);
 
-  const handleCreateTask = useCallback((name: string, priority: TaskPriority, dependencies: string[]) => {
-    const task = createTask(name, priority, dependencies);
+  // Simulate log streaming (will be replaced by WebSocket/SSE from backend)
+  useEffect(() => {
+    if (loading) return;
+    const interval = setInterval(() => {
+      setLogs(prev => [...prev, generateMockLog()].slice(-50));
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  const handleCreateTask = useCallback(async (name: string, priority: TaskPriority, dependencies: string[]) => {
+    const task = await createTask(name, priority, dependencies);
     setTasks(prev => [...prev, task]);
     setLogs(prev => [...prev, {
       id: `log-create-${task.id}`,
       timestamp: new Date().toISOString(),
-      level: "info",
+      level: "info" as const,
       message: `Task "${name}" created with priority ${priority}`,
       source: "system",
     }]);
   }, []);
 
   const stats = getStats(tasks, workers);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex items-center gap-3 text-muted-foreground font-mono text-sm">
+          <span className="h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
+          Connecting to backend...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background grid-pattern">
