@@ -5,6 +5,17 @@ import { buildGraph, hasCycle } from "../engine/cycleDetection.js";
 
 const router = express.Router();
 
+
+router.get("/", async (req, res) => {
+  const tasks = await Task.find();
+  res.json(tasks);
+});
+
+router.get("/", async (req, res) => {
+  const tasks = await Task.find();
+  res.json(tasks);
+});
+
 router.post("/", async (req, res) => {
   try {
     const { name, priority, executionTime, dependencies } = req.body;
